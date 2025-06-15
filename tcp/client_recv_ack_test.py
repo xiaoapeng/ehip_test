@@ -31,14 +31,21 @@ if __name__ == "__main__":
     server_seq += 1
     helper.send_ack(client_seq, server_seq)
 
-    #  发送数据 12345
-    helper.send_data(client_seq, server_seq, "12345123451234512345123451234512")
-    client_seq += 32
-
-    ret = helper.wait_ack(client_seq, timeout=5)
+    # 接收数据 5个字节
+    ret = helper.wait_common(expected_ack=client_seq, expected_seq=server_seq, flags="A", data_len=5)
     if not ret:
-        logging.info("[ERROR] Wait ACK failed")
+        logging.info("[ERROR] Wait data failed")
         exit(1)
+    server_seq += 5
+    # 注入过去的ACK
+    helper.send_common(client_seq, server_seq - 5, "PA", "12345")
+    client_seq += 5
+    helper.send_common(client_seq, server_seq - 5, "A")
+    helper.send_common(client_seq, server_seq - 10, "PA", "12345")
+    client_seq += 5
+    helper.send_common(client_seq, server_seq - 5, "A")
+    helper.send_common(client_seq, server_seq - 5, "A")
+    time.sleep(3)
 
     #  发送FIN
     ret = helper.send_fin_wait_ack(client_seq, server_seq, timeout=0.1)
@@ -55,3 +62,5 @@ if __name__ == "__main__":
 
     server_seq += 1
     helper.send_ack(client_seq, server_seq)
+
+

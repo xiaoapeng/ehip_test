@@ -35,23 +35,24 @@ if __name__ == "__main__":
     helper.send_data(client_seq, server_seq, "12345123451234512345123451234512")
     client_seq += 32
 
-    ret = helper.wait_ack(client_seq, timeout=5)
+    ret = helper.wait_ack(client_seq, timeout=0.5)
     if not ret:
         logging.info("[ERROR] Wait ACK failed")
         exit(1)
 
-    #  发送FIN
-    ret = helper.send_fin_wait_ack(client_seq, server_seq, timeout=0.1)
-    if not ret:
-        logging.info("[ERROR] Send FIN failed")
+    # 注入带数据的 rst (窗口内) 可正常rst
+    helper.send_common(client_seq-5, server_seq+1, "RA", "12345")
+    ret = helper.wait_ack(client_seq + 5, timeout=0.5)
+    if ret:
+        logging.info("[ERROR] rst 0 Wait ACK ok")
         exit(1)
+
     
-    client_seq += 1
+    helper.send_data(client_seq, server_seq, "12345123451234512345123451234512")
+    client_seq += 32
 
-    ret = helper.wait_fin(client_seq, server_seq, timeout=0.1)
-    if not ret:
-        logging.info(f'[ERROR] Wait FIN failed client:{client_seq} server_seq{server_seq}')
+    ret = helper.wait_ack(client_seq, timeout=0.5)
+    if ret:
+        logging.info("[ERROR] rst 2 Wait ACK ok")
         exit(1)
 
-    server_seq += 1
-    helper.send_ack(client_seq, server_seq)
