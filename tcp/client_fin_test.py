@@ -1,14 +1,20 @@
 import time
 import random
-import os
 import tcp_test_helper
 import logging
 
 
-# 配置目标信息
-TARGET_IP = "192.168.12.12"
-TARGET_PORT = 7777
-LOCAL_IP = "192.168.12.7"
+import os
+import sys
+
+
+# 获取当前文件的父目录的绝对路径
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# 添加到模块搜索路径
+sys.path.append(parent_dir)
+
+import config
+
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -19,7 +25,7 @@ if __name__ == "__main__":
     # 获取本地IP和随机端口
     client_seq = random.randint(1000, 1000000)
     ret = False
-    helper = tcp_test_helper.TCPHelper(TARGET_IP, TARGET_PORT, LOCAL_IP)
+    helper = tcp_test_helper.TCPHelper(config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP)
 
     # 三次握手
     success, server_seq = helper.send_syn_wait_ack(client_seq)
@@ -53,7 +59,7 @@ if __name__ == "__main__":
     # 获取本地IP和随机端口
     client_seq = random.randint(1000, 1000000)
     ret = False
-    helper = tcp_test_helper.TCPHelper(TARGET_IP, TARGET_PORT, LOCAL_IP)
+    helper = tcp_test_helper.TCPHelper(config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP)
 
     # 三次握手
     success, server_seq = helper.send_syn_wait_ack(client_seq)

@@ -2,10 +2,9 @@ import time
 from scapy.layers.inet import IP, TCP
 from scapy.sendrecv import send, sr1, AsyncSniffer
 from scapy.packet import Raw
-import threading
+import os
 import queue
 import random
-import os
 import logging
 
 class TCPHelper:
