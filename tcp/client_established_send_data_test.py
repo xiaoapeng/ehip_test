@@ -47,12 +47,24 @@ if __name__ == "__main__":
         exit(1)
     
     #  发送数据 不带ACK 发送 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    helper.send_common(client_seq, server_seq, "FP", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    helper.send_common(client_seq, server_seq, "P", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
     ret = helper.wait_ack(client_seq + 26, timeout=0.5)
     if ret:
         logging.info("[ERROR] Wait ACK ok")
         exit(1)
+
+
+    helper.clean_queue()
+
+    #  发送数据 ACK在窗口外 发送 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    helper.send_common(client_seq, server_seq - 10, "PA", "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+    ret = helper.wait_ack(client_seq + 26, timeout=0.5)
+    if not ret:
+        logging.info("[ERROR] Wait ACK failed")
+        exit(1)
+    client_seq += 26
 
     #  发送FIN
     ret = helper.send_fin_wait_ack(client_seq, server_seq, timeout=0.1)

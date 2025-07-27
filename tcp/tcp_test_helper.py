@@ -6,6 +6,43 @@ import os
 import queue
 import random
 import logging
+from dataclasses import dataclass
+from ctypes import c_uint32
+
+@dataclass
+class TcpData:
+    seq: c_uint32
+    end_seq: c_uint32
+    len: c_uint32
+    payload: bytes
+
+
+class TcpTestDataProducer:
+    def __init__(self, first_data_seq:c_uint32):
+        self.first_data_seq = first_data_seq
+
+    def make_data(self, seq:c_uint32, len:c_uint32=32, end_seq=None):
+        """
+        生成测试数据包,数据将从first_data_seq序列号起,
+        从0x00开始递增到0xff然后重新从0x00开始递增
+        :param seq: 序列号
+        :param len: 数据长度
+        :return: 生成的测试数据包
+        """
+        if end_seq is not None:
+            len = end_seq - seq
+        else:
+            end_seq = seq + len
+
+        # 生成数据字节序列
+        payload = bytes(
+            (seq + i) % 256  # 确保在0x00-0xff范围内循环
+            for i in range(len)
+        )
+        return TcpData(self.first_data_seq + seq, self.first_data_seq + end_seq, len, payload)
+
+
+
 
 class TCPHelper:
     def __init__(self, target_ip, target_port, local_ip, local_port=None):
@@ -26,6 +63,8 @@ class TCPHelper:
         self.packet_queue = queue.Queue()
         self.sniffing = True
         self.sniffer_thread = None
+        self.tx_window = None
+        self.mss = 1460  # 默认MSS值
         
         # 自动阻止重置包
         self._block_reset_packets()
@@ -79,7 +118,7 @@ class TCPHelper:
         self.async_sniffer.stop()
 
 
-    def send_syn_wait_ack(self, seq, timeout=5):
+    def send_syn_wait_ack(self, seq:c_uint32, timeout=5):
         """
         发送SYN包并等待SYN-ACK响应
         
@@ -98,6 +137,16 @@ class TCPHelper:
         
         if response and response.haslayer(TCP) and response[TCP].flags & 0x12:  # SYN-ACK
             server_seq = response[TCP].seq
+            self.tx_window = response[TCP].window
+            options = response[TCP].options
+            for option in options:
+                if option[0] == 'MSS':
+                    # 确认值类型并提取
+                    if isinstance(option[1], int):
+                        self.mss = option[1]  # 直接使用整数值
+                    else:
+                        self.mss = 546
+                    break
             return True, server_seq
         
         return False, None
@@ -118,7 +167,7 @@ class TCPHelper:
     
         send(packet, verbose=0)
 
-    def send_data(self, seq, ack, data):
+    def send_data(self, seq:c_uint32, ack:c_uint32, data):
         """
         发送数据包
         
@@ -126,17 +175,29 @@ class TCPHelper:
         :param ack: 确认号
         :param data: 要发送的数据
         """
+
+        # 统一数据处理逻辑
+        if isinstance(data, str):
+            payload = data.encode('utf-8')  # 字符串转二进制（默认UTF-8编码）
+        elif isinstance(data, bytes):
+            payload = data  # 直接使用二进制数据
+        elif isinstance(data, bytearray):
+            payload = bytes(data)  # bytearray转bytes
+        else:
+            raise TypeError(f"Unsupported data type: {type(data).__name__}. "
+                            "Expected str, bytes, or bytearray.")
+
         packet = IP(src=self.local_ip, dst=self.target_ip) / TCP(
             sport=self.local_port,
             dport=self.target_port,
             flags="PA",  # PSH + ACK
             seq=seq,
             ack=ack
-        ) / Raw(load=data.encode())
+        ) / Raw(load=payload)
         
         send(packet, verbose=0)
     
-    def send_common(self, seq, ack, flags, data =  ""):
+    def send_common(self, seq:c_uint32, ack:c_uint32, flags, data=None):
         """
         发送普通包
         :param seq: SEQ
@@ -144,17 +205,31 @@ class TCPHelper:
         :param flags: 标志位
         :param data: 要发送的数据
         """
+
+        # 统一数据处理逻辑
+        if data is None:
+            payload = bytes()
+        elif isinstance(data, str):
+            payload = data.encode('utf-8')  # 字符串转二进制（默认UTF-8编码）
+        elif isinstance(data, bytes):
+            payload = data  # 直接使用二进制数据
+        elif isinstance(data, bytearray):
+            payload = bytes(data)  # bytearray转bytes
+        else:
+            raise TypeError(f"Unsupported data type: {type(data).__name__}. "
+                            "Expected str, bytes, or bytearray.")
+
         packet = IP(src=self.local_ip, dst=self.target_ip) / TCP(
             sport=self.local_port,
             dport=self.target_port,
             flags=flags,
             seq=seq,
             ack=ack
-        ) / Raw(load=data.encode())
+        ) / Raw(load=payload)
 
         send(packet, verbose=0)
 
-    def send_fin(self, seq, ack):
+    def send_fin(self, seq:c_uint32, ack:c_uint32):
         """
         发送FIN包
         
@@ -171,7 +246,7 @@ class TCPHelper:
         
         send(packet, verbose=0)
     
-    def send_fin_wait_ack(self, seq, ack, timeout=5):
+    def send_fin_wait_ack(self, seq:c_uint32, ack:c_uint32, timeout=5):
         """
         :param seq: 当前序列号
         :param ack: 确认号
@@ -202,7 +277,7 @@ class TCPHelper:
         while not self.packet_queue.empty():
             self.packet_queue.get()
 
-    def wait_common(self, expected_ack=None, expected_seq=None, flags:str = None, 
+    def wait_common(self, expected_ack:c_uint32=None, expected_seq:c_uint32=None, flags:str = None, 
                     data_len=None, data=None, timeout=3):
         """
         等待符合条件的TCP数据包 - 严格匹配模式(含按位标志检查)
@@ -293,7 +368,7 @@ class TCPHelper:
 
 
 
-    def wait_ack(self, expected_ack, timeout=3):
+    def wait_ack(self, expected_ack:c_uint32, timeout=3):
         """
         等待特定ACK号的确认包
         
@@ -309,6 +384,7 @@ class TCPHelper:
                 # logging.debug(f'wait_ack :{pkt} seq{pkt[TCP].seq} ack{pkt[TCP].ack}')
                 if pkt.haslayer(TCP) and pkt[TCP].flags & 0x10:  # ACK
                     if pkt[TCP].ack == expected_ack:
+                        self.tx_window = pkt[TCP].window
                         return True
             except queue.Empty:
                 pass
@@ -316,7 +392,7 @@ class TCPHelper:
         return False
     
 
-    def wait_fin(self, expected_ack, expected_seq, timeout=5):
+    def wait_fin(self, expected_ack:c_uint32, expected_seq:c_uint32, timeout=5):
         """
         等待带有特定序列号和确认号的FIN包
         
@@ -337,6 +413,8 @@ class TCPHelper:
                     
                     # 检查seq和ack是否符合预期
                     if actual_seq == expected_seq and actual_ack == expected_ack:
+                        if pkt[TCP].flags & 0x10:  # 确保是ACK
+                            self.tx_window = pkt[TCP].window
                         return True
             except queue.Empty:
                 pass
