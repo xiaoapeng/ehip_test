@@ -39,11 +39,11 @@ def tcp_echo_test(total_bytes: int, ip: str, port: int, recv_timeout: float = 5.
     def sender():
         nonlocal next_send_seq
         try:
-            batch_uints = 1024  # 每批 16KB
+            batch_uints = 1024*32  # 每批 16KB
             while not stop_event.is_set() and next_send_seq < total_uint32:
                 remaining = total_uint32 - next_send_seq
                 send_count = min(batch_uints, remaining)
-                buf = b''.join(struct.pack('!I', next_send_seq + i) for i in range(send_count))
+                buf = b''.join(struct.pack('!I', (next_send_seq + i) & 0xFFFFFFFF) for i in range(send_count))
                 try:
                     sent_bytes = sock.send(buf)
                 except Exception as e:
@@ -93,9 +93,10 @@ def tcp_echo_test(total_bytes: int, ip: str, port: int, recv_timeout: float = 5.
 
                 for i in range(full_uints):
                     val, = struct.unpack_from('!I', data, i * 4)
-                    if val != expected:
+                    expected_wrapped = expected & 0xFFFFFFFF
+                    if val != expected_wrapped:
                         error_info["occurred"] = True
-                        error_info["message"] = f"数据错: 期望 {expected}, 收到 {val}"
+                        error_info["message"] = f"数据错: 期望 {expected_wrapped}, 收到 {val}"
                         stop_event.set()
                         return
                     expected += 1
@@ -159,7 +160,7 @@ def tcp_echo_test(total_bytes: int, ip: str, port: int, recv_timeout: float = 5.
 
 # 示例用法（请把 ip, port 改为你的 echo 服务端地址）
 if __name__ == "__main__":
-    TOTAL_BYTES = 40 * 1024 * 1024  # 例如 100k 个 uint32 -> 400k 字节
+    TOTAL_BYTES = 400000 * 1024 * 1024  # 例如 100k 个 uint32 -> 400k 字节
     try:
         elapsed, spd, recv_bytes = tcp_echo_test(TOTAL_BYTES, config.TARGET_IP, config.TARGET_PORT_ECHO)
         print(f"结果: elapsed={elapsed:.3f}s speed={spd:.2f} B/s recv_bytes={recv_bytes}")

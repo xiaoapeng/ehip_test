@@ -21,7 +21,7 @@ def test_established_fragment_0(client_seq, server_ip, server_port, local_ip, lo
     helper = tcp_test_helper.TCPHelper(server_ip, server_port, local_ip, local_port)
 
     # 三次握手
-    success, server_seq = helper.send_syn_wait_ack(client_seq)
+    success, server_seq = helper.send_syn_wait_ack(client_seq,1000)
     if not success:
         logging.info("[ERROR] Send SYN failed")
         return False
@@ -40,7 +40,7 @@ def test_established_fragment_0(client_seq, server_ip, server_port, local_ip, lo
     helper.send_common(ds_0.end_seq, server_seq, "FA")
 
     # 会收到一个重复ACK
-    ret = helper.wait_ack(client_seq, timeout=0.5)
+    ret = helper.wait_ack(client_seq, timeout=1000)
     if not ret:
         logging.info("[ERROR] Wait ACK failed")
         return False
@@ -52,13 +52,13 @@ def test_established_fragment_0(client_seq, server_ip, server_port, local_ip, lo
     # 之前的FIN会合并
     client_seq = ds_0.end_seq + 1
 
-    ret = helper.wait_ack(client_seq, timeout=0.5)
+    ret = helper.wait_ack(client_seq, timeout=1000)
     if not ret:
         logging.info("[ERROR] Wait ACK failed")
         return False
     
     # 等待FIN
-    ret = helper.wait_fin(client_seq, server_seq, timeout=0.5)
+    ret = helper.wait_fin(client_seq, server_seq, timeout=1000)
     if not ret:
         logging.info(f'[ERROR] Wait FIN failed client:{client_seq} server_seq{server_seq}')
         return False
@@ -380,35 +380,35 @@ if __name__ == "__main__":
         level=logging.DEBUG
     )
 
-    # ret = test_established_fragment_0(random.randint(1000, 1000000), config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_0(random.randint(1000, 1000000), config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
-    # ret = test_established_fragment_1(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_1(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
-    # ret = test_established_fragment_2(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_2(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
-    # ret = test_established_fragment_3(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_3(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
-    # ret = test_established_fragment_4(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_4(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
-    # ret = test_established_fragment_5(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
-    # if not ret:
-    #     logging.error("Test failed")
-    #     exit(1)
+    ret = test_established_fragment_5(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
+    if not ret:
+        logging.error("Test failed")
+        exit(1)
     
     ret = test_established_fragment_6(0, config.TARGET_IP, config.TARGET_PORT, config.LOCAL_IP, random.randint(9000, 65535))
     if not ret:
