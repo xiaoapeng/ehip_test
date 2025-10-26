@@ -160,7 +160,7 @@ def tcp_echo_test(total_bytes: int, ip: str, port: int, recv_timeout: float = 5.
 
 # 示例用法（请把 ip, port 改为你的 echo 服务端地址）
 if __name__ == "__main__":
-    TOTAL_BYTES = 400000 * 1024 * 1024  # 例如 100k 个 uint32 -> 400k 字节
+    TOTAL_BYTES = 40 * 1024 * 1024  # 例如 100k 个 uint32 -> 400k 字节
     try:
         elapsed, spd, recv_bytes = tcp_echo_test(TOTAL_BYTES, config.TARGET_IP, config.TARGET_PORT_ECHO)
         print(f"结果: elapsed={elapsed:.3f}s speed={spd:.2f} B/s recv_bytes={recv_bytes}")
