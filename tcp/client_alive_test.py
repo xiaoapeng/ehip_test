@@ -16,7 +16,7 @@ sys.path.append(parent_dir)
 import config
 
 
-def test_alive_recv_timeout(client_seq, server_ip, server_port, local_ip, local_port):
+def test_alive_recv(client_seq, server_ip, server_port, local_ip, local_port):
     ret = False
     helper = tcp_test_helper.TCPHelper(server_ip, server_port, local_ip, local_port)
 
@@ -214,5 +214,6 @@ if __name__ == "__main__":
         datefmt='%Y-%m-%d %H:%M:%S',
         level=logging.DEBUG
     )
+    test_alive_recv(random.randint(1000, 1000000), config.TARGET_IP, config.TARGET_ALIVE_TEST, config.LOCAL_IP, random.randint(9000, 65535))
     test_alive_recv_timeout(random.randint(1000, 1000000), config.TARGET_IP, config.TARGET_ALIVE_TEST, config.LOCAL_IP, random.randint(9000, 65535))
 
