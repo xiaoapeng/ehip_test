@@ -45,7 +45,7 @@ class TcpTestDataProducer:
 
 
 class TCPHelper:
-    def __init__(self, target_ip, target_port, local_ip, local_port=None):
+    def __init__(self, target_ip, target_port, local_ip, local_port=None, rx_window=65535):
         """
         TCP测试助手类
         
@@ -65,6 +65,7 @@ class TCPHelper:
         self.sniffer_thread = None
         self.tx_window = None
         self.mss = 1460  # 默认MSS值
+        self.rx_window = rx_window  # 默认接收窗口大小
         
         # 自动阻止重置包
         self._block_reset_packets()
@@ -130,7 +131,8 @@ class TCPHelper:
             sport=self.local_port,
             dport=self.target_port,
             flags="S",
-            seq=seq
+            seq=seq,
+            window = self.rx_window
         )
         
         response = sr1(packet, timeout=timeout, verbose=0)
@@ -162,7 +164,8 @@ class TCPHelper:
             dport=self.target_port,
             flags="A",  # ACK标志
             seq=seq,
-            ack=ack
+            ack=ack,
+            window = self.rx_window
         )
     
         send(packet, verbose=0)
@@ -192,12 +195,13 @@ class TCPHelper:
             dport=self.target_port,
             flags="PA",  # PSH + ACK
             seq=seq,
-            ack=ack
+            ack=ack,
+            window = self.rx_window
         ) / Raw(load=payload)
         
         send(packet, verbose=0)
     
-    def send_common(self, seq:c_uint32, ack:c_uint32, flags, data=None):
+    def send_common(self, seq:c_uint32, ack:c_uint32, flags, data=None, rx_window=None):
         """
         发送普通包
         :param seq: SEQ
@@ -218,13 +222,15 @@ class TCPHelper:
         else:
             raise TypeError(f"Unsupported data type: {type(data).__name__}. "
                             "Expected str, bytes, or bytearray.")
-
+        if rx_window is None:
+            rx_window = self.rx_window
         packet = IP(src=self.local_ip, dst=self.target_ip) / TCP(
             sport=self.local_port,
             dport=self.target_port,
             flags=flags,
             seq=seq,
-            ack=ack
+            ack=ack,
+            window = rx_window
         ) / Raw(load=payload)
 
         send(packet, verbose=0)
@@ -241,7 +247,8 @@ class TCPHelper:
             dport=self.target_port,
             flags="FA",  # FIN + ACK
             seq=seq,
-            ack=ack
+            ack=ack,
+            window = self.rx_window
         )
         
         send(packet, verbose=0)
@@ -259,7 +266,8 @@ class TCPHelper:
             dport=self.target_port,
             flags="FA",  # FIN+ACK
             seq=seq,
-            ack=ack
+            ack=ack,
+            window = self.rx_window
         )
         
         # 设置重传机制(可选)
